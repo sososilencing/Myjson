@@ -1,35 +1,15 @@
 package main
 
 import (
-	"Myjson/model"
 	"bytes"
 	"fmt"
 	"reflect"
 	"strconv"
-	"unsafe"
 )
 
 var buffer bytes.Buffer
 
 func main() {
-	student := &model.Student{
-		StuCode: 2018212152,
-		StuName: "hgn",
-		Thing: []string{
-			"123",
-			"23",
-			"13",
-		},
-		CardName: model.Card{
-			Number: "16534",
-			Name:   "card",
-		},
-	}
-
-	e := &student
-	t := &e
-	b := Marshel(&t)
-	fmt.Printf(*(*string)(unsafe.Pointer(&b)))
 }
 
 type Queue struct {
@@ -53,6 +33,7 @@ func Marshel(obj interface{}) []byte {
 	return buffer.Bytes()
 }
 
+//内部真正实现
 func marshel(obj interface{}) {
 	v := reflect.ValueOf(obj)
 	t := reflect.TypeOf(obj)
@@ -63,6 +44,7 @@ func marshel(obj interface{}) {
 	getkind1(name)
 }
 
+//得到实体
 func getElem1(name Name) {
 	switch name.V.Kind() {
 	case reflect.Ptr, reflect.Struct:
@@ -72,6 +54,7 @@ func getElem1(name Name) {
 	}
 }
 
+//得到类型 进行判断 下面是各个类型的入口
 func getkind1(name Name) func() {
 	k := name.V.Kind()
 	switch k {
@@ -102,18 +85,21 @@ func getkind1(name Name) func() {
 	}
 }
 
+//布尔类型
 func getBool(name Name) func() {
 	b := name.V.Bool()
 	buffer.WriteString(strconv.FormatBool(b))
 	return nil
 }
 
+//整型
 func getInt(name Name) func() {
 	i := name.V.Int()
 	buffer.WriteString(strconv.Itoa(int(i)))
 	return nil
 }
 
+// 浮点数
 func getFloat(name Name) func() {
 	v := name.V.Float()
 	v1 := strconv.FormatFloat(v, 'f', -1, 64)
@@ -123,6 +109,8 @@ func getFloat(name Name) func() {
 func getUint() {
 
 }
+
+// 数组的序列化
 func getArray(name Name) func() {
 	buffer.WriteString("[")
 	for i := 0; i < name.V.Len(); i++ {
@@ -140,6 +128,8 @@ func getArray(name Name) func() {
 func getInterface() {
 
 }
+
+//map 的序列化
 func getMap(name Name) func() {
 	que := Queue{}
 	que.name = make([]Name, 10)
@@ -170,20 +160,29 @@ func getMap(name Name) func() {
 	do(que)
 	return nil
 }
+
+//指针？？
 func getPtr(name Name) func() {
 	name.V = name.V.Elem()
 	name.T = name.T.Elem()
 	getElem1(name)
 	return nil
 }
+
+//切片的序列化
 func getSlice(name Name) func() {
+	l := name.V.Len()
+	if l == 0 {
+		buffer.WriteString("null")
+		return nil
+	}
 	buffer.WriteString("[")
-	for i := 0; i < name.V.Len(); i++ {
+	for i := 0; i < l; i++ {
 		json(Name{
 			V: name.V.Index(i),
 			T: name.V.Index(i).Type(),
 		})
-		if i != name.V.Len()-1 {
+		if i != l-1 {
 			buffer.WriteString(",")
 		}
 	}
@@ -194,6 +193,8 @@ func getString(name Name) func() {
 	buffer.WriteString("\"" + name.V.String() + "\"")
 	return nil
 }
+
+// 结构体的 序列化
 func getStruct(name Name) func() {
 	que := Queue{}
 	que.name = make([]Name, 10)
@@ -225,6 +226,7 @@ func getStruct(name Name) func() {
 	return nil
 }
 
+// 这个又是一个判断 判断 第二次解析出来的该放在哪
 func json(name Name) func() {
 	t := name.T
 	switch t.Kind() {
@@ -240,6 +242,7 @@ func json(name Name) func() {
 	return nil
 }
 
+//放在一个队列里面 然后 取出来 进行判断 然后写入
 func do(queue Queue) {
 	buffer.WriteString("{")
 	//分为每一个原子类型
@@ -259,4 +262,10 @@ func do(queue Queue) {
 		}
 	}
 	buffer.WriteString("}")
+}
+
+// 开始反序列化
+
+func Unmarshel() {
+
 }

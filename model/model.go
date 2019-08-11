@@ -4,7 +4,7 @@ type Student struct {
 	StuCode  int
 	StuName  string
 	CardName Card
-	Thing    []string
+	Thing    [2]string
 }
 
 type Card struct {
