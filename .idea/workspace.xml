@@ -2,10 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="ed12cad1-0d3e-4206-aca3-ac8657de5ea5" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/MyJson.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/MyJson.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmd/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/cmd/main.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/method/test.go" beforeDir="false" afterPath="$PROJECT_DIR$/method/test.go" afterDir="false" />
@@ -69,6 +65,15 @@
       <filePath value="$PROJECT_DIR$/cmd/main.go" />
       <method v="2" />
     </configuration>
+    <configuration name="go build model.go" type="GoApplicationRunConfiguration" factoryName="Go Application" temporary="true" nameIsGenerated="true">
+      <module name="MyJson" />
+      <working_directory value="$PROJECT_DIR$/" />
+      <kind value="FILE" />
+      <filePath value="$PROJECT_DIR$/model/model.go" />
+      <package value="Myjson" />
+      <directory value="$PROJECT_DIR$/" />
+      <method v="2" />
+    </configuration>
     <configuration name="go build test.go" type="GoApplicationRunConfiguration" factoryName="Go Application" temporary="true" nameIsGenerated="true">
       <module name="MyJson" />
       <working_directory value="$PROJECT_DIR$/" />
@@ -80,6 +85,7 @@
       <list>
         <item itemvalue="Go Build.go build test.go" />
         <item itemvalue="Go Build.go build main.go" />
+        <item itemvalue="Go Build.go build model.go" />
         <item itemvalue="Go Build.go build MyJson/cmd" />
       </list>
     </recent_temporary>

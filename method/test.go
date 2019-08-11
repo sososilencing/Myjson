@@ -9,7 +9,7 @@ import (
 
 var buffer bytes.Buffer
 
-func main(){
+func main() {
 	//student:=&model.Student{
 	//	StuCode:  2018212152,
 	//	StuName:  "hgn",
@@ -28,54 +28,59 @@ func main(){
 	//t:=&e
 	//b:=Marshel(&t)
 	//fmt.Printf(*(*string)(unsafe.Pointer(&b)))
-	a :=make(map[string][]int)
-	s:=make([]int,3)
-	s[0]=1
-	s[1]=2
-	a["123"]=s
-	b:=Marshel(a)
-	str:=*(*string)(unsafe.Pointer(&b))
+	a := make(map[string][213]int)
+	var s [213]int
+	s[0] = 11241
+	s[1] = 331
+	a["123"] = s
+	b := Marshel(a)
+	str := *(*string)(unsafe.Pointer(&b))
 	fmt.Println(str)
 }
+
+var track []Name
+var begin int
+var end int
 
 type Name struct {
 	V reflect.Value
 	T reflect.Type
-	viceV reflect.Value
-	viceT reflect.Type
 }
+
 // 要写入一个结构体 或者全局变量
 // 会有一个递归调用
 // 用偏移量来增加 性能
 // 递归调用 拿到指针 是莫得用的  需要得到他真实的类型 数值 才可以 操作 如果有多个&&&& 就循环拿到 相当于while  拿到实体
-func Marshel(obj interface{}) bytes.Buffer{
-	buffer.WriteString("{")
+func Marshel(obj interface{}) []byte {
+	track = make([]Name, 10)
 	marshel(obj)
+	buffer.WriteString("{")
+	do()
 	buffer.WriteString("}")
-	return buffer
+	return buffer.Bytes()
 }
 
 func marshel(obj interface{}) {
-	v :=reflect.ValueOf(obj)
-	t :=reflect.TypeOf(obj)
-	name:=Name{
-		V:     v,
-		T:     t,
+	v := reflect.ValueOf(obj)
+	t := reflect.TypeOf(obj)
+	name := Name{
+		V: v,
+		T: t,
 	}
 	getkind1(name)
 }
 
-func getElem1(name Name){
+func getElem1(name Name) {
 	switch name.V.Kind() {
-	case reflect.Ptr,reflect.Struct:
+	case reflect.Ptr, reflect.Struct:
 		getkind1(name)
 	default:
 		fmt.Println(name.V.Elem())
 	}
 }
 
-func getkind1(name Name) func(){
-	k:=name.V.Kind()
+func getkind1(name Name) func() {
+	k := name.V.Kind()
 	switch k {
 	case reflect.Bool:
 		return getBool
@@ -83,7 +88,7 @@ func getkind1(name Name) func(){
 		return getInt(name)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		return getUint
-	case reflect.Float32,reflect.Float64:
+	case reflect.Float32, reflect.Float64:
 		return getFloat
 	case reflect.String:
 		fmt.Println(name.T.Kind())
@@ -107,77 +112,78 @@ func getkind1(name Name) func(){
 	}
 }
 
-func getBool()  {
+func getBool() {
 
 }
 
-func getInt(name Name)  func(){
+func getInt(name Name) func() {
 	fmt.Println("我到达这里int")
 
 	return nil
 }
 
-func getFloat(){
+func getFloat() {
 
 }
-func getUint()  {
+func getUint() {
 
 }
-func getArray(){
-
-
+func getArray() {
 
 }
-func getInterface()  {
+func getInterface() {
 
 }
-func getMap(name Name)  func(){
-	for _,k:=range name.V.MapKeys(){
+func getMap(name Name) func() {
+	for _, k := range name.V.MapKeys() {
 		//这里得到的是 key 值的 类型
-		fmt.Println(k.Type())
+		//fmt.Println(k.Type())
 		// this is about value
-		value:=name.V.MapIndex(k)
-
-		name:=Name{
+		value := name.V.MapIndex(k)
+		name1 := Name{
 			V: k,
 			T: k.Type(),
-			viceV:value,
-			viceT:value.Type(),
 		}
-		fmt.Println(name)
+
+		name2 := Name{
+			V: value,
+			T: value.Type(),
+		}
+		//fmt.Println(name)
 		//  这个是 key 的值
 
-
-		json(name)
+		track[end] = name1
+		end++
+		track[end] = name2
+		end++
 		//name.V.MapIndex(k).Type() this is about value's type
-
 	}
 	return nil
 }
-func getPtr(name Name) func(){
-	name.V=name.V.Elem()
-	name.T=name.T.Elem()
+func getPtr(name Name) func() {
+	name.V = name.V.Elem()
+	name.T = name.T.Elem()
 	getElem1(name)
 	return nil
 }
-func getSlice()  {
+func getSlice() {
 
 }
-func getString(name Name)  func(){
+func getString(name Name) func() {
 	return nil
 }
-func getStruct(name Name) func(){
-	num:=name.V.NumField()
-	for i:=0;i<num;i++{
+func getStruct(name Name) func() {
+	num := name.V.NumField()
+	for i := 0; i < num; i++ {
 		f := name.V.Field(i)
 		k := name.T.Field(i).Name
-		fmt.Println(f,k)
+		fmt.Println(f, k)
 	}
 	return nil
 }
 
-func json(name Name)  func(){
-	fmt.Println(name.viceT,name.viceV)
+func json(name Name) func() {
+	fmt.Println(name)
 	//switch p.Kind() {
 	//case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64,reflect.Float32,reflect.Float64:
 	//	fmt.Println(p,value)
@@ -192,4 +198,33 @@ func json(name Name)  func(){
 	//}
 	//return getkind1(name)
 	return nil
+}
+
+func do() {
+	//分为每一个原子类型
+	for i := begin; i < end; i++ {
+		name := track[i]
+		if i%2 == 0 {
+			//这里 永远都是一个string
+			buffer.Write([]byte("\""))
+			buffer.Write([]byte(name.V.String()))
+			buffer.Write([]byte("\""))
+			buffer.Write([]byte(":"))
+		} else {
+			t := name.T
+			fmt.Println(t.Kind())
+			if t.Kind() == reflect.Slice {
+				fmt.Println("a")
+			}
+			if i == end-1 {
+				//同一个函数判断类
+				//b:=name.V.Int()
+				//
+				//buffer.WriteString(strconv.Itoa(int(b)))
+			} else {
+				//一个函数 判断类型
+
+			}
+		}
+	}
 }
