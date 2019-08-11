@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"unsafe"
 )
 
 var buffer bytes.Buffer
@@ -27,14 +28,21 @@ func main(){
 	//t:=&e
 	//b:=Marshel(&t)
 	//fmt.Printf(*(*string)(unsafe.Pointer(&b)))
-	a :=make(map[string]int)
-	a["123"]=1
-	Marshel(a)
+	a :=make(map[string][]int)
+	s:=make([]int,3)
+	s[0]=1
+	s[1]=2
+	a["123"]=s
+	b:=Marshel(a)
+	str:=*(*string)(unsafe.Pointer(&b))
+	fmt.Println(str)
 }
 
 type Name struct {
 	V reflect.Value
 	T reflect.Type
+	viceV reflect.Value
+	viceT reflect.Type
 }
 // 要写入一个结构体 或者全局变量
 // 会有一个递归调用
@@ -50,7 +58,10 @@ func Marshel(obj interface{}) bytes.Buffer{
 func marshel(obj interface{}) {
 	v :=reflect.ValueOf(obj)
 	t :=reflect.TypeOf(obj)
-	name:=Name{v,t}
+	name:=Name{
+		V:     v,
+		T:     t,
+	}
 	getkind1(name)
 }
 
@@ -69,7 +80,7 @@ func getkind1(name Name) func(){
 	case reflect.Bool:
 		return getBool
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return getInt
+		return getInt(name)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		return getUint
 	case reflect.Float32,reflect.Float64:
@@ -77,7 +88,7 @@ func getkind1(name Name) func(){
 	case reflect.String:
 		fmt.Println(name.T.Kind())
 		fmt.Println(name.V.String())
-		return getString
+		return getString(name)
 	case reflect.Interface:
 		return getInterface
 	case reflect.Struct:
@@ -100,8 +111,10 @@ func getBool()  {
 
 }
 
-func getInt()  {
+func getInt(name Name)  func(){
+	fmt.Println("我到达这里int")
 
+	return nil
 }
 
 func getFloat(){
@@ -120,7 +133,24 @@ func getInterface()  {
 }
 func getMap(name Name)  func(){
 	for _,k:=range name.V.MapKeys(){
-		fmt.Println(name.V.MapIndex(k).Kind())
+		//这里得到的是 key 值的 类型
+		fmt.Println(k.Type())
+		// this is about value
+		value:=name.V.MapIndex(k)
+
+		name:=Name{
+			V: k,
+			T: k.Type(),
+			viceV:value,
+			viceT:value.Type(),
+		}
+		fmt.Println(name)
+		//  这个是 key 的值
+
+
+		json(name)
+		//name.V.MapIndex(k).Type() this is about value's type
+
 	}
 	return nil
 }
@@ -133,8 +163,8 @@ func getPtr(name Name) func(){
 func getSlice()  {
 
 }
-func getString()  {
-
+func getString(name Name)  func(){
+	return nil
 }
 func getStruct(name Name) func(){
 	num:=name.V.NumField()
@@ -143,5 +173,23 @@ func getStruct(name Name) func(){
 		k := name.T.Field(i).Name
 		fmt.Println(f,k)
 	}
+	return nil
+}
+
+func json(name Name)  func(){
+	fmt.Println(name.viceT,name.viceV)
+	//switch p.Kind() {
+	//case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64,reflect.Float32,reflect.Float64:
+	//	fmt.Println(p,value)
+	//	return getInt()
+	//case reflect.String:
+	//	fmt.Println(p,value)
+	//	return nil
+	//}
+	//name:=Name{
+	//	V: value,
+	//	T: p,
+	//}
+	//return getkind1(name)
 	return nil
 }
