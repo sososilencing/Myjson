@@ -1,7 +1,6 @@
 package main
 
 import (
-	"Myjson/model"
 	"encoding/json"
 	"fmt"
 	"unsafe"
@@ -38,13 +37,20 @@ func main() {
 	//a[0]=true
 	//a[1]=false
 
-	a := make(map[string]map[string]string)
-	q := make(map[string]string)
-	q["xx"]="aa"
-	a["1"]=q
+	q := make(map[string]map[string][]int)
+	a := make(map[string]map[string]map[string][]int)
+	g := make(map[string][]int)
+	z := make([]int, 4)
+	z[0] = 1
+	z[1] = 2
+	g["123"] = z
+	q["xx"] = g
+	a["1"] = q
 	//var d interface{}
-	student:=model.Student{}
-	s,_:=json.Marshal(student)
-	str:=*(*string)(unsafe.Pointer(&s))
+	//student:=model.Student{}
+	dd := make([]int, 10)
+	dd[1] = 1
+	s, _ := json.Marshal(a)
+	str := *(*string)(unsafe.Pointer(&s))
 	fmt.Println(str)
 }
