@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"strconv"
 	"unsafe"
 )
 
@@ -28,19 +29,26 @@ func main() {
 	//t:=&e
 	//b:=Marshel(&t)
 	//fmt.Printf(*(*string)(unsafe.Pointer(&b)))
-	a := make(map[string][213]int)
-	var s [213]int
-	s[0] = 11241
-	s[1] = 331
-	a["123"] = s
+	//a := make(map[string]map[string]string)
+	//q := make(map[string]string)
+	//q["xx"]="xx"
+	//a["1"]=q
+	//student:=model.Student{}
+	var a [10]int
+	a[0]=1
 	b := Marshel(a)
 	str := *(*string)(unsafe.Pointer(&b))
 	fmt.Println(str)
 }
 
-var track []Name
-var begin int
-var end int
+var que Queue
+
+type Queue struct{
+	 queue []Queue
+	 name []Name
+	 endname int
+	 endque int
+}
 
 type Name struct {
 	V reflect.Value
@@ -52,11 +60,9 @@ type Name struct {
 // 用偏移量来增加 性能
 // 递归调用 拿到指针 是莫得用的  需要得到他真实的类型 数值 才可以 操作 如果有多个&&&& 就循环拿到 相当于while  拿到实体
 func Marshel(obj interface{}) []byte {
-	track = make([]Name, 10)
+	que.name = make([]Name,10)
+	que.queue = make([]Queue,10)
 	marshel(obj)
-	buffer.WriteString("{")
-	do()
-	buffer.WriteString("}")
 	return buffer.Bytes()
 }
 
@@ -83,28 +89,25 @@ func getkind1(name Name) func() {
 	k := name.V.Kind()
 	switch k {
 	case reflect.Bool:
-		return getBool
+		return getBool(name)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return getInt(name)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		return getUint
 	case reflect.Float32, reflect.Float64:
-		return getFloat
+		return getFloat(name)
 	case reflect.String:
-		fmt.Println(name.T.Kind())
-		fmt.Println(name.V.String())
 		return getString(name)
 	case reflect.Interface:
 		return getInterface
 	case reflect.Struct:
 		return getStruct(name)
 	case reflect.Map:
-		fmt.Println(name)
 		return getMap(name)
 	case reflect.Slice:
 		return getSlice
 	case reflect.Array:
-		return getArray
+		return getArray(name)
 	case reflect.Ptr:
 		return getPtr(name)
 	default:
@@ -112,24 +115,40 @@ func getkind1(name Name) func() {
 	}
 }
 
-func getBool() {
-
-}
-
-func getInt(name Name) func() {
-	fmt.Println("我到达这里int")
-
+func getBool(name Name) func(){
+	b:=name.V.Bool()
+	buffer.WriteString(strconv.FormatBool(b))
 	return nil
 }
 
-func getFloat() {
+func getInt(name Name) func() {
+	i:=name.V.Int()
+	buffer.WriteString(strconv.Itoa(int(i)))
+	return nil
+}
 
+func getFloat(name Name) func(){
+	v := name.V.Float()
+	v1 := strconv.FormatFloat(v,'f',-1,64)
+	buffer.WriteString(v1)
+	return nil
 }
 func getUint() {
 
 }
-func getArray() {
-
+func getArray(name Name) func(){
+	buffer.WriteString("[")
+	for i:=0;i<name.V.Len();i++{
+		json(Name{
+			V: name.V.Index(i),
+			T: name.V.Index(i).Type(),
+		})
+		if i!=name.V.Len()-1{
+			buffer.WriteString(",")
+		}
+	}
+	buffer.WriteString("]")
+	return nil
 }
 func getInterface() {
 
@@ -152,10 +171,10 @@ func getMap(name Name) func() {
 		//fmt.Println(name)
 		//  这个是 key 的值
 
-		track[end] = name1
-		end++
-		track[end] = name2
-		end++
+		que.name[que.endname]=name1
+		que.endname++
+		que.name[que.endname]=name2
+		que.endname++
 		//name.V.MapIndex(k).Type() this is about value's type
 	}
 	return nil
@@ -170,6 +189,7 @@ func getSlice() {
 
 }
 func getString(name Name) func() {
+	buffer.WriteString("\""+name.V.String()+"\"")
 	return nil
 }
 func getStruct(name Name) func() {
@@ -183,27 +203,25 @@ func getStruct(name Name) func() {
 }
 
 func json(name Name) func() {
-	fmt.Println(name)
-	//switch p.Kind() {
-	//case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64,reflect.Float32,reflect.Float64:
-	//	fmt.Println(p,value)
-	//	return getInt()
-	//case reflect.String:
-	//	fmt.Println(p,value)
-	//	return nil
-	//}
-	//name:=Name{
-	//	V: value,
-	//	T: p,
-	//}
-	//return getkind1(name)
+	t := name.T
+	switch t.Kind() {
+	case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64:
+		getInt(name)
+	case reflect.Float32,reflect.Float64:
+		getFloat(name)
+	case reflect.String:
+		getString(name)
+	default:
+
+	}
 	return nil
 }
 
-func do() {
+func do(queue Queue) {
+	buffer.WriteString("{")
 	//分为每一个原子类型
-	for i := begin; i < end; i++ {
-		name := track[i]
+	for i := 0; i < que.endname; i++ {
+		name := queue.name[i]
 		if i%2 == 0 {
 			//这里 永远都是一个string
 			buffer.Write([]byte("\""))
@@ -211,20 +229,14 @@ func do() {
 			buffer.Write([]byte("\""))
 			buffer.Write([]byte(":"))
 		} else {
-			t := name.T
-			fmt.Println(t.Kind())
-			if t.Kind() == reflect.Slice {
-				fmt.Println("a")
-			}
-			if i == end-1 {
-				//同一个函数判断类
-				//b:=name.V.Int()
-				//
-				//buffer.WriteString(strconv.Itoa(int(b)))
-			} else {
-				//一个函数 判断类型
-
+			json(name)
+			if i != que.endname-1 {
+				buffer.WriteString(",")
 			}
 		}
 	}
+	buffer.WriteString("}")
 }
+
+
+

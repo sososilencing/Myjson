@@ -9,21 +9,21 @@ import (
 
 func main() {
 
-	student := &model.Student{
-		StuCode: 2018212152,
-		StuName: "hgn",
-
-		CardName: model.Card{
-			Number: "16534",
-			Name:   "card",
-		},
-	}
-
-	e := &student
-	b, _ := json.Marshal(&e)
-
-	str := *(*string)(unsafe.Pointer(&b))
-	fmt.Println(str)
+	//student := &model.Student{
+	//	StuCode: 2018212152,
+	//	StuName: "hgn",
+	//
+	//	CardName: model.Card{
+	//		Number: "16534",
+	//		Name:   "card",
+	//	},
+	//}
+	//
+	//e := &student
+	//b, _ := json.Marshal(&e)
+	//
+	//str := *(*string)(unsafe.Pointer(&b))
+	//fmt.Println(str)
 	//
 	//m:=make(map[string][]int)
 	//t:=make([]int,10)
@@ -37,7 +37,14 @@ func main() {
 	//var a [10]bool
 	//a[0]=true
 	//a[1]=false
-	//s,_:=json.Marshal(a)
-	//str:=*(*string)(unsafe.Pointer(&s))
-	//fmt.Println(str)
+
+	a := make(map[string]map[string]string)
+	q := make(map[string]string)
+	q["xx"]="aa"
+	a["1"]=q
+	//var d interface{}
+	student:=model.Student{}
+	s,_:=json.Marshal(student)
+	str:=*(*string)(unsafe.Pointer(&s))
+	fmt.Println(str)
 }
