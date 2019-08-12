@@ -1,4 +1,4 @@
-package main
+package method
 
 import (
 	"bytes"
@@ -8,9 +8,6 @@ import (
 )
 
 var buffer bytes.Buffer
-
-func main() {
-}
 
 type Queue struct {
 	queue   []Queue
@@ -265,7 +262,32 @@ func do(queue Queue) {
 }
 
 // 开始反序列化
+// 反序列也需要递归样 而且 要入栈出栈
+func Unmarshal(str string, i interface{}) {
+	t := reflect.TypeOf(i)
+	v := reflect.ValueOf(i)
+	if t.Kind() != reflect.Ptr {
+		return
+	}
+	name := Name{
+		V: v,
+		T: t,
+	}
+	fmt.Println(str)
+	for _, c := range str {
+		name.unmarshal(c)
+	}
+}
 
-func Unmarshel() {
+// 来来来面向对象 编程  把这个传入的 interface 变为对象 然后 解析 这个对象 给这个对象 赋值 赋值 然后 因为是指针 就可以改变了 嘻嘻嘻
+func (name *Name) unmarshal(b int32) {
+	if b == '{' {
+		fmt.Println("?")
+		fmt.Println(name.V.Kind())
+	}
+
+}
+
+func decide(name Name) {
 
 }
