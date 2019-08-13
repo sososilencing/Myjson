@@ -8,6 +8,6 @@ type Student struct {
 }
 
 type Card struct {
-	Number string
+	Number float32
 	Name   string
 }

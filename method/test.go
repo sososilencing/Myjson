@@ -265,29 +265,43 @@ func do(queue Queue) {
 // 反序列也需要递归样 而且 要入栈出栈
 func Unmarshal(str string, i interface{}) {
 	t := reflect.TypeOf(i)
-	v := reflect.ValueOf(i)
+
 	if t.Kind() != reflect.Ptr {
 		return
 	}
 	name := Name{
-		V: v,
 		T: t,
 	}
+	name.decide()
 	fmt.Println(str)
-	for _, c := range str {
-		name.unmarshal(c)
-	}
+	unmarshal(str)
 }
 
 // 来来来面向对象 编程  把这个传入的 interface 变为对象 然后 解析 这个对象 给这个对象 赋值 赋值 然后 因为是指针 就可以改变了 嘻嘻嘻
-func (name *Name) unmarshal(b int32) {
-	if b == '{' {
-		fmt.Println("?")
-		fmt.Println(name.V.Kind())
+func  unmarshal(str string) {
+	for i, c := range str {
+		fmt.Println(i,":",c)
 	}
-
 }
 
-func decide(name Name) {
+func(name *Name) decide() {
+	e:=name.T.Elem()
+	switch e.Kind() {
+	case reflect.Struct:
+		name.AnalysisStruct()
+	case reflect.Ptr:
+		name.getElem()
+	}
+}
 
+func(name *Name)  AnalysisStruct(){
+	e:=name.T.Elem()
+	for i:=0 ;i<e.NumField();i++{
+		fmt.Print(e.Field(i).Name)
+		fmt.Println(" ",e.Field(i).Type)
+	}
+}
+func(name *Name)  getElem(){
+	name.T =name.T.Elem()
+	name.decide()
 }
