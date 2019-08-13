@@ -2,26 +2,32 @@ package main
 
 import (
 	"MyJson/method"
-	"Myjson/model"
-	"encoding/json"
+	"MyJson/model"
 	"fmt"
-	"unsafe"
 )
 
 func main() {
-	var card string
-	card = "{\"Name\":\"12312\",\"Number\":1321}"
-	b:= *(*[]byte)(unsafe.Pointer(&card))
-
-	//fmt.Println(b)
-
-	var ca model.Card
-
-	method.Unmarshal(card, &ca)
-	if err := json.Unmarshal(b, &ca);err!=nil{
-		fmt.Println(err.Error())
+	student := &model.Student{
+		StuCode:  1234,
+		StuName:  "hgn",
+		CardName: model.Card{
+			Number: "123",
+			Name:   "321",
+		},
+		Thing:    [2]string{},
 	}
+	b:=method.Marshel(student)
+	//b:=method.Marshel(&ca)
+	// b:= *(*[]byte)(unsafe.Pointer(&card))
+	//fmt.Println(*(*string)(unsafe.Pointer(&b)))
+	ca :=&model.Student{}
+	method.Unmarshal(string(b), &ca)
 	fmt.Println(ca)
+	//json.Unmarshal(b,&ca)
+	//if err := json.Unmarshal(b, &ca);err!=nil{
+	//	fmt.Println(err.Error())
+	//}
+	//fmt.Println(ca)
 	//fmt.Println(ca.Name)
 	//fmt.Println(ca)
 

@@ -99,7 +99,7 @@ func getInt(name Name) func() {
 // 浮点数
 func getFloat(name Name) func() {
 	v := name.V.Float()
-	v1 := strconv.FormatFloat(v, 'f', -1, 64)
+	v1 := strconv.FormatFloat(v, 'f', -1, 32)
 	buffer.WriteString(v1)
 	return nil
 }
@@ -129,8 +129,7 @@ func getInterface() {
 //map 的序列化
 func getMap(name Name) func() {
 	que := Queue{}
-	que.name = make([]Name, 10)
-	que.queue = make([]Queue, 10)
+
 	for _, k := range name.V.MapKeys() {
 		//这里得到的是 key 值的 类型
 		//fmt.Println(k.Type())
@@ -148,10 +147,10 @@ func getMap(name Name) func() {
 		//fmt.Println(name)
 		//  这个是 key 的值
 
-		que.name[que.endname] = name1
 		que.endname++
-		que.name[que.endname] = name2
+		que.name = append(que.name, name1)
 		que.endname++
+		que.name = append(que.name,name2)
 		//name.V.MapIndex(k).Type() this is about value's type
 	}
 	do(que)
@@ -194,8 +193,8 @@ func getString(name Name) func() {
 // 结构体的 序列化
 func getStruct(name Name) func() {
 	que := Queue{}
-	que.name = make([]Name, 10)
-	que.queue = make([]Queue, 10)
+	//que.name = make([]Name,10)
+	//que.queue = make([]Queue,10)
 	num := name.V.NumField()
 	for i := 0; i < num; i++ {
 		f := name.V.Field(i)
@@ -214,10 +213,13 @@ func getStruct(name Name) func() {
 			T: f.Type(),
 		}
 
-		que.name[que.endname] = name1
 		que.endname++
-		que.name[que.endname] = name2
+		que.name = append(que.name, name1)
 		que.endname++
+		que.name = append(que.name,name2)
+		//que.name[que.endname] = name1
+
+		//que.name[que.endname] = name2
 	}
 	do(que)
 	return nil
@@ -265,22 +267,49 @@ func do(queue Queue) {
 // 反序列也需要递归样 而且 要入栈出栈
 func Unmarshal(str string, i interface{}) {
 	t := reflect.TypeOf(i)
-
+	v := reflect.ValueOf(i)
 	if t.Kind() != reflect.Ptr {
 		return
 	}
 	name := Name{
+		V: v,
 		T: t,
 	}
 	name.decide()
 	fmt.Println(str)
-	unmarshal(str)
+	name.unmarshal(str)
 }
 
 // 来来来面向对象 编程  把这个传入的 interface 变为对象 然后 解析 这个对象 给这个对象 赋值 赋值 然后 因为是指针 就可以改变了 嘻嘻嘻
-func  unmarshal(str string) {
-	for i, c := range str {
-		fmt.Println(i,":",c)
+func(name *Name) unmarshal(str string) {
+	var key string
+	begain := -1
+	end := -1
+	first := -1
+	for i:=0;i<len(str);i++{
+		if first==-1 {
+			if str[i] == '"' && begain != -1 {
+				end = i
+				b := str[begain+1 : end]
+				key = b
+				begain = -1
+				end = -1
+			} else if str[i] == '"' && begain == -1 {
+				begain = i
+			}
+		}
+		// 这个 value 这里还要做处理才可以
+		if begain == -1 {
+			if str[i] == ':' {
+				first = i
+			} else if (str[i] == ',' || str[i] == '}')&& first != -1 {
+				end = i
+				b := str[first+1 : end]
+				name.set(key,b)
+				end = -1
+				first = -1
+			}
+		}
 	}
 }
 
@@ -297,11 +326,23 @@ func(name *Name) decide() {
 func(name *Name)  AnalysisStruct(){
 	e:=name.T.Elem()
 	for i:=0 ;i<e.NumField();i++{
-		fmt.Print(e.Field(i).Name)
-		fmt.Println(" ",e.Field(i).Type)
+		//fmt.Print(e.Field(i).Name)
+		//fmt.Println(" ",e.Field(i).Type)
 	}
 }
 func(name *Name)  getElem(){
-	name.T =name.T.Elem()
+	name.T = name.T.Elem()
+	name.V = name.V.Elem()
 	name.decide()
+}
+
+func(name *Name) set(s string,v string) (str string){
+	defer func() {
+		if r:=recover();r!=nil{
+			str = "参数错误"
+		}
+	}()
+	fmt.Println(s,":",v)
+	fmt.Println(name.V.Elem().FieldByName(s).Kind())
+	return str
 }
