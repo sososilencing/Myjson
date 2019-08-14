@@ -1,9 +1,10 @@
 package main
 
 import (
-	"MyJson/method"
-	"MyJson/model"
+	"Myjson/method"
+	"Myjson/model"
 	"fmt"
+	"unsafe"
 )
 
 func main() {
@@ -13,32 +14,20 @@ func main() {
 		CardName: model.Card{
 			Number: "123",
 			Name:   "321",
+			Man:    model.Peo{Ma:"13"},
 		},
-		Thing:    [2]string{},
 	}
-	b:=method.Marshel(student)
-	//b:=method.Marshel(&ca)
-	// b:= *(*[]byte)(unsafe.Pointer(&card))
-	//fmt.Println(*(*string)(unsafe.Pointer(&b)))
-	ca :=&model.Student{}
-	method.Unmarshal(string(b), &ca)
-	fmt.Println(ca)
-	//json.Unmarshal(b,&ca)
-	//if err := json.Unmarshal(b, &ca);err!=nil{
-	//	fmt.Println(err.Error())
-	//}
-	//fmt.Println(ca)
-	//fmt.Println(ca.Name)
-	//fmt.Println(ca)
+	student1 :=make(map[string]model.Student)
+	//student["123"]="123"
+	//student["321"]="321"
+	student1["123"]=*student
+	b := method.Marshel(student)
+	str := *(*string)(unsafe.Pointer(&b))
 
-	//var a [3]int
-	//a[0] = 1
-	//a[1] = 3
-	//a[2] = 4
-	//s, _ := json.Marshal(a)
-	//fmt.Println(*(*string)(unsafe.Pointer(&s)))
-	//
-	//var name [2]int
-	//json.Unmarshal(s, &name)
-	//fmt.Println(name)
+	var stu model.Student
+	//s,_:=json.Marshal(student)
+    method.Unmarshal(str,&stu)
+
+	fmt.Println(stu)
+	//fmt.Println(student1)
 }

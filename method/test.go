@@ -193,16 +193,13 @@ func getString(name Name) func() {
 // 结构体的 序列化
 func getStruct(name Name) func() {
 	que := Queue{}
-	//que.name = make([]Name,10)
-	//que.queue = make([]Queue,10)
 	num := name.V.NumField()
 	for i := 0; i < num; i++ {
+
 		f := name.V.Field(i)
-
 		k := name.T.Field(i)
-
 		v := reflect.ValueOf(k.Name)
-		//fmt.Println(v)
+
 		name1 := Name{
 			V: v,
 			T: k.Type,
@@ -217,9 +214,6 @@ func getStruct(name Name) func() {
 		que.name = append(que.name, name1)
 		que.endname++
 		que.name = append(que.name,name2)
-		//que.name[que.endname] = name1
-
-		//que.name[que.endname] = name2
 	}
 	do(que)
 	return nil
@@ -250,7 +244,12 @@ func do(queue Queue) {
 		if i%2 == 0 {
 			//这里 永远都是一个string
 			buffer.Write([]byte("\""))
-			buffer.Write([]byte(name.V.String()))
+			switch name.V.Kind() {
+			case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64:
+				buffer.WriteString(strconv.Itoa(int(name.V.Int())))
+				case reflect.String:
+				buffer.WriteString(name.V.String())
+			}
 			buffer.Write([]byte("\""))
 			buffer.Write([]byte(":"))
 		} else {
@@ -281,54 +280,101 @@ func Unmarshal(str string, i interface{}) {
 }
 
 // 来来来面向对象 编程  把这个传入的 interface 变为对象 然后 解析 这个对象 给这个对象 赋值 赋值 然后 因为是指针 就可以改变了 嘻嘻嘻
-func(name *Name) unmarshal(str string) {
+func(name *Name) unmarshal(str string)  int{
+	defer func() {
+		if r:=recover();r!=nil{
+
+		}
+	}()
+
 	var key string
-	begain := -1
+	begin := -1
 	end := -1
 	first := -1
-	for i:=0;i<len(str);i++{
-		if first==-1 {
-			if str[i] == '"' && begain != -1 {
+	var i int
+
+	for i = 0;i<len(str);i++ {
+		if first == -1 {
+			if str[i] == '"' && begin != -1 {
+
 				end = i
-				b := str[begain+1 : end]
+				b := str[begin+1 : end]
 				key = b
-				begain = -1
+
+				switch name.V.FieldByName(key).Kind() {
+				case reflect.Struct:
+
+					name1 := &Name{
+						V: name.V.FieldByName(key),
+					}
+
+					i += name1.unmarshal(str[i+2:]) + 1
+
+				case reflect.Slice:
+				case reflect.Array:
+				case reflect.Map:
+				default:
+				}
+				begin = -1
 				end = -1
-			} else if str[i] == '"' && begain == -1 {
-				begain = i
+			}else if str[i] == '"' && begin == -1 {
+				begin = i
 			}
 		}
 		// 这个 value 这里还要做处理才可以
-		if begain == -1 {
+		if begin == -1 {
 			if str[i] == ':' {
 				first = i
-			} else if (str[i] == ',' || str[i] == '}')&& first != -1 {
+			} else if str[i] == ',' && first != -1 {
 				end = i
 				b := str[first+1 : end]
-				name.set(key,b)
+				name.set(key, b)
 				end = -1
 				first = -1
+			} else if str[i] == '}' && first != -1 {
+				end = i
+				b := str[first+1 : end]
+				name.set(key, b)
+				end = -1
+				first = -1
+				return i
 			}
 		}
 	}
+	return i
 }
 
 func(name *Name) decide() {
 	e:=name.T.Elem()
+	name.V=name.V.Elem()
+	name.T=name.T.Elem()
 	switch e.Kind() {
 	case reflect.Struct:
-		name.AnalysisStruct()
+
 	case reflect.Ptr:
 		name.getElem()
 	}
 }
 
-func(name *Name)  AnalysisStruct(){
-	e:=name.T.Elem()
-	for i:=0 ;i<e.NumField();i++{
-		//fmt.Print(e.Field(i).Name)
-		//fmt.Println(" ",e.Field(i).Type)
-	}
+func(name *Name)  AnalysisStruct(str string) {
+	//var i int
+	//begain := -1
+	//first := -1
+	//end := -1
+	//for i = 0 ; i<len(str); i++{
+	//	var key string
+	//	if str[i]== '}'{
+	//		return i
+	//	}else {
+	//		if str[i]=='"'{
+	//			begain = i
+	//		}else if str[i] == '"' && begain != -1{
+	//			key := str[begain+1:i]
+	//			begain = -1
+	//		}
+	//	}
+	//}
+	//return i
 }
 func(name *Name)  getElem(){
 	name.T = name.T.Elem()
@@ -342,7 +388,30 @@ func(name *Name) set(s string,v string) (str string){
 			str = "参数错误"
 		}
 	}()
+
 	fmt.Println(s,":",v)
-	fmt.Println(name.V.Elem().FieldByName(s).Kind())
+	c := name.V.FieldByName(s)
+	switch c.Kind() {
+	case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64:
+		i,err := strconv.Atoi(v)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		c.SetInt(int64(i))
+	case reflect.String:
+		c.SetString(v[1:len(v)-1])
+	case reflect.Bool:
+		b,err := strconv.ParseBool(v)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		c.SetBool(b)
+	case reflect.Float32,reflect.Float64:
+		f,err := strconv.ParseFloat(v,64)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		c.SetFloat(f)
+	}
 	return str
 }
