@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strconv"
 )
 
@@ -47,7 +48,7 @@ func getElem1(name Name) {
 	case reflect.Ptr, reflect.Struct:
 		getkind1(name)
 	default:
-		fmt.Println(name.V.Elem())
+		buffer.WriteString("null")
 	}
 }
 
@@ -111,10 +112,10 @@ func getUint() {
 func getArray(name Name) func() {
 	buffer.WriteString("[")
 	for i := 0; i < name.V.Len(); i++ {
-		json(Name{
-			V: name.V.Index(i),
-			T: name.V.Index(i).Type(),
-		})
+			json(Name{
+				V: name.V.Index(i),
+				T: name.V.Index(i).Type(),
+			})
 		if i != name.V.Len()-1 {
 			buffer.WriteString(",")
 		}
@@ -222,6 +223,7 @@ func getStruct(name Name) func() {
 // 这个又是一个判断 判断 第二次解析出来的该放在哪
 func json(name Name) func() {
 	t := name.T
+
 	switch t.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		getInt(name)
@@ -265,21 +267,182 @@ func do(queue Queue) {
 // 开始反序列化
 // 反序列也需要递归样 而且 要入栈出栈
 func Unmarshal(str string, i interface{}) {
-	t := reflect.TypeOf(i)
+ 	t := reflect.TypeOf(i)
 	v := reflect.ValueOf(i)
 	if t.Kind() != reflect.Ptr {
 		return
 	}
+	//fmt.Println(i)
 	name := Name{
 		V: v,
 		T: t,
 	}
 	name.decide()
-	fmt.Println(str)
-	name.unmarshal(str)
+	//fmt.Println(str)
+	fmt.Println(name.V.Kind())
+
+	//把map 实例化  明天再想想
+	name.V.Set(reflect.MakeMap(name.T))
+
+	//这个是 map 里的key 类型判断 与 value 判断不同
+	//fmt.Println(name.T.Key().Kind())
+	//name.enter(str)
 }
 
+func(name *Name) enter(str string)  {
+	switch name.V.Kind() {
+	case reflect.Bool:
+		name.unBool(str)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		name.unInt(str)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return
+	case reflect.Float32, reflect.Float64:
+		name.unFloat(str)
+	case reflect.String:
+		name.unString(str)
+	case reflect.Interface:
+		return
+	case reflect.Struct:
+		name.unmarshal(str)
+	case reflect.Map:
+		name.unMap(str)
+	case reflect.Slice:
+		name.unSlice(str)
+	case reflect.Array:
+		name.unArray(str)
+	case reflect.Ptr:
+		return
+	default:
+		return
+	}
+}
+
+// 这是切片扩容 搞定了
+func(name *Name) unSlice(str string)  {
+	 if name.V.IsNil(){
+	 	newv:=reflect.MakeSlice(name.T,name.V.Len(), len(str))
+	 	reflect.Copy(newv,name.V)
+	 	name.V.Set(newv)
+	 }
+	 name.V.SetLen(name.V.Len()+1)
+	 name.V.Index(0).Set(reflect.ValueOf(1))
+}
+
+
+//没有写完  //不管了 虽然有点小bug
+func(name *Name) unArray(str string)  {
+	fmt.Println("array")
+	reg := regexp.MustCompile("[0-9]+")
+	num := reg.FindAllString(str,-1)
+	fmt.Println(num)
+	for i,k:=range num{
+		if name.V.Len() > i{
+			f,err := strconv.Atoi(k)
+			if err != nil {
+				return
+			}
+		name.V.Index(i).Set(reflect.ValueOf(f))
+		}else {
+			return
+		}
+	}
+}
+
+// 问题大得很
+func(name *Name) unMap(str string)  int{
+		begain := -1
+		first := -1
+		end := -1
+		i := 0
+
+		for i = 0;i < len(str);i++{
+			if str[i]=='"' && begain == -1 && first ==-1{
+				begain = i
+			}else if str[i]=='"' && begain !=-1{
+				end = i
+				key := str[begain+1:end]
+
+				k := name.T.Elem().Kind()
+				//a := make(map[string]string)
+
+				switch  k{
+				case reflect.Map:
+					name1:=&Name{
+						V: name.V.MapIndex(reflect.ValueOf(key)),
+						T: name.T.Elem(),
+					}
+					//fmt.Println(str[end+2:])
+					i+=name1.unMap(str[end+2:])+1
+					//fmt.Println(name.V.MapIndex(reflect.ValueOf(key)))
+					//fmt.Println()
+				}
+				begain = -1
+				end = -1
+			}
+
+			if str[i]==':' && first == -1 && begain == -1{
+				first = i
+			}else if str[i]==',' && first !=-1{
+				end = i
+				//value := str[first+1:end]
+				//fmt.Println(value)
+				//fmt.Println()
+				end = -1
+				first = -1
+			}else if str[i]=='}' && first !=-1{
+				return i
+			}
+		}
+		return i
+}
+
+// 解析bool
+func(name *Name) unBool(str string){
+	reg := regexp.MustCompile(`{([\s\S]+)}`)
+	if reg.MatchString(str){
+		f :=reg.FindStringSubmatch(str)
+		b,err := strconv.ParseBool(f[1])
+		if err!=nil{
+			return
+		}
+		name.V.SetBool(b)
+	}else {
+		b,err := strconv.ParseBool(str)
+		if err != nil {
+			return
+		}
+		name.V.SetBool(b)
+	}
+}
+
+func(name *Name) unInt(str string)  {
+	b,err:=strconv.Atoi(str)
+	if err != nil {
+		return
+	}
+	name.V.SetInt(int64(b))
+}
+
+func(name *Name) unFloat(str string)  {
+	b,err :=strconv.ParseFloat(str,32)
+	if err != nil {
+		return
+	}
+	name.V.SetFloat(b)
+}
+
+func(name *Name) unString(str string)  {
+	reg :=regexp.MustCompile("\"[\\s\\S]+\"[\\s\\S]{1}")
+	if reg.MatchString(str){
+		fmt.Println(str,"?")
+		return
+		//name.V.SetString(str)
+	}
+	name.V.SetString(str)
+}
 // 来来来面向对象 编程  把这个传入的 interface 变为对象 然后 解析 这个对象 给这个对象 赋值 赋值 然后 因为是指针 就可以改变了 嘻嘻嘻
+// 写垃圾了 不能复用
 func(name *Name) unmarshal(str string)  int{
 	defer func() {
 		if r:=recover();r!=nil{
@@ -356,26 +519,7 @@ func(name *Name) decide() {
 	}
 }
 
-func(name *Name)  AnalysisStruct(str string) {
-	//var i int
-	//begain := -1
-	//first := -1
-	//end := -1
-	//for i = 0 ; i<len(str); i++{
-	//	var key string
-	//	if str[i]== '}'{
-	//		return i
-	//	}else {
-	//		if str[i]=='"'{
-	//			begain = i
-	//		}else if str[i] == '"' && begain != -1{
-	//			key := str[begain+1:i]
-	//			begain = -1
-	//		}
-	//	}
-	//}
-	//return i
-}
+
 func(name *Name)  getElem(){
 	name.T = name.T.Elem()
 	name.V = name.V.Elem()
