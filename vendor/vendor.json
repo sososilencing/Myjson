@@ -1,6 +1,15 @@
 {
 	"comment": "",
 	"ignore": "test",
-	"package": [],
+	"package": [
+		{
+			"path": "https:",
+			"revision": ""
+		},
+		{
+			"path": "https://github.com/garyburd/redigo/redis",
+			"revision": ""
+		}
+	],
 	"rootPath": "Myjson"
 }

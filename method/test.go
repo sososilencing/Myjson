@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 var buffer bytes.Buffer
@@ -27,6 +28,7 @@ type Name struct {
 // 用偏移量来增加 性能
 // 递归调用 拿到指针 是莫得用的  需要得到他真实的类型 数值 才可以 操作 如果有多个&&&& 就循环拿到 相当于while  拿到实体
 func Marshel(obj interface{}) []byte {
+	buffer.Reset()
 	marshel(obj)
 	return buffer.Bytes()
 }
@@ -279,14 +281,11 @@ func Unmarshal(str string, i interface{}) {
 	}
 	name.decide()
 	//fmt.Println(str)
-	fmt.Println(name.V.Kind())
-
-	//把map 实例化  明天再想想
-	name.V.Set(reflect.MakeMap(name.T))
-
+	//fmt.Println(name.T.Elem().Elem().Field(1))
+	//fmt.Println(name.V.MapIndex(reflect.ValueOf(0)).Kind())
 	//这个是 map 里的key 类型判断 与 value 判断不同
 	//fmt.Println(name.T.Key().Kind())
-	//name.enter(str)
+	name.enter(str)
 }
 
 func(name *Name) enter(str string)  {
@@ -318,83 +317,211 @@ func(name *Name) enter(str string)  {
 	}
 }
 
-// 这是切片扩容 搞定了
+// 这是切片
 func(name *Name) unSlice(str string)  {
 	 if name.V.IsNil(){
 	 	newv:=reflect.MakeSlice(name.T,name.V.Len(), len(str))
 	 	reflect.Copy(newv,name.V)
 	 	name.V.Set(newv)
 	 }
-	 name.V.SetLen(name.V.Len()+1)
-	 name.V.Index(0).Set(reflect.ValueOf(1))
+	 flag := -1
+	 reg := regexp.MustCompile("\\[([\\s\\S]+)\\]")
+	 if reg.MatchString(str){
+	 	ssr:=reg.FindStringSubmatch(str)
+	 	s := strings.Split(ssr[1],",")
+	 	fmt.Println(s)
+		switch name.T.Elem().Kind(){
+		case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+			flag = 1
+		case reflect.String:
+			flag = 2
+		default:
+			return
+		}
+	 	if flag == 1{
+	 		for i,k := range s{
+				if i >= name.V.Cap(){
+					newcap := name.V.Cap()+name.V.Cap()/2
+					if newcap < 4{
+						newcap = 4
+					}
+					newv := reflect.MakeSlice(name.V.Type(),name.V.Len(),newcap)
+					reflect.Copy(newv,name.V)
+					name.V.Set(newv)
+				}
+				if i >= name.V.Len(){
+					name.V.SetLen(i+1)
+				}
+	 			a,err := strconv.Atoi(k)
+				if err != nil {
+					return
+				}
+	 			name.V.Index(i).Set(reflect.ValueOf(a))
+			}
+		}else if flag == 2{
+			for i,k := range s{
+				if i >= name.V.Cap(){
+					newcap := name.V.Cap()+name.V.Cap()/2
+					if newcap < 4{
+						newcap = 4
+					}
+					newv := reflect.MakeSlice(name.V.Type(),name.V.Len(),newcap)
+					reflect.Copy(newv,name.V)
+					name.V.Set(newv)
+				}
+				if i >= name.V.Len(){
+					name.V.SetLen(i+1)
+				}
+				reg1 := regexp.MustCompile("\"[\\s\\S]+\"")
+				if reg1.MatchString(k) {
+					name.V.Index(i).Set(reflect.ValueOf(k[1 : len(k)-1]))
+				}
+			}
+		}else {
+			return
+		}
+	 }
 }
 
 
-//没有写完  //不管了 虽然有点小bug
+//写好了
 func(name *Name) unArray(str string)  {
-	fmt.Println("array")
-	reg := regexp.MustCompile("[0-9]+")
-	num := reg.FindAllString(str,-1)
-	fmt.Println(num)
-	for i,k:=range num{
-		if name.V.Len() > i{
-			f,err := strconv.Atoi(k)
-			if err != nil {
+	name.V.Set(reflect.Zero(name.T))
+	reg := regexp.MustCompile("\\[([\\s\\S]+)\\]")
+	if reg.MatchString(str){
+		ssr := reg.FindStringSubmatch(str)
+		s := strings.Split(ssr[1],",")
+		for i,k := range s{
+			if i > name.V.Len(){
 				return
+			}else {
+				d := name.V.Index(i).Kind()
+				switch d {
+				case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64,
+					reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+					a,err := strconv.Atoi(k)
+					if err != nil {
+						return
+					}
+					name.V.Index(i).Set(reflect.ValueOf(a))
+				case reflect.String:
+					reg1 := regexp.MustCompile("\"[\\s\\S]+\"")
+					if reg1.MatchString(k) {
+						name.V.Index(i).Set(reflect.ValueOf(k[1 : len(k)-1]))
+					}
+				default:
+					return
+				}
 			}
-		name.V.Index(i).Set(reflect.ValueOf(f))
-		}else {
-			return
 		}
 	}
 }
 
 // 问题大得很
 func(name *Name) unMap(str string)  int{
-		begain := -1
-		first := -1
-		end := -1
-		i := 0
+	name.V.Set(reflect.Zero(name.T))
+	if !name.V.CanSet(){
+		return len(str)
+	}
+	if name.V.IsNil(){
+		mapElem:=reflect.MakeMap(name.T)
+		name.V.Set(mapElem)
+	}
 
-		for i = 0;i < len(str);i++{
-			if str[i]=='"' && begain == -1 && first ==-1{
-				begain = i
-			}else if str[i]=='"' && begain !=-1{
-				end = i
-				key := str[begain+1:end]
+	begain := -1
+	first := -1
+	end := -1
+	i := 0
+	var key string
 
-				k := name.T.Elem().Kind()
-				//a := make(map[string]string)
-
-				switch  k{
-				case reflect.Map:
-					name1:=&Name{
-						V: name.V.MapIndex(reflect.ValueOf(key)),
-						T: name.T.Elem(),
-					}
-					//fmt.Println(str[end+2:])
-					i+=name1.unMap(str[end+2:])+1
-					//fmt.Println(name.V.MapIndex(reflect.ValueOf(key)))
-					//fmt.Println()
+	for i = 0;i < len(str);i++{
+		if str[i]=='"' && begain == -1 && first ==-1{
+			begain = i
+		}else if str[i]=='"' && begain !=-1{
+			end = i
+			key = str[begain+1:end]
+			k := name.T.Elem().Kind()
+			switch  k{
+			case reflect.Map:
+				name1:=&Name{
+					V: name.V.MapIndex(reflect.ValueOf(key)),
+					T: name.T.Elem(),
 				}
-				begain = -1
-				end = -1
+				i+=name1.unMap(str[end+2:])+1
+			}
+			begain = -1
+			end = -1
+		}
+
+		if str[i]==':' && first == -1 && begain == -1{
+			first = i
+		}else if str[i]==',' && first !=-1{
+			end = i
+			value := str[first+1:end]
+
+			var subv reflect.Value
+			switch name.T.Elem().Kind(){
+			case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64,
+				reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+				dd,err := strconv.Atoi(value)  // 转化为int
+				if err != nil {
+					return len(str)
+				}
+				subv = reflect.ValueOf(dd)
+			case reflect.String:
+				subv = reflect.ValueOf(value[1:len(value)-1])
 			}
 
-			if str[i]==':' && first == -1 && begain == -1{
-				first = i
-			}else if str[i]==',' && first !=-1{
-				end = i
-				//value := str[first+1:end]
-				//fmt.Println(value)
-				//fmt.Println()
-				end = -1
-				first = -1
-			}else if str[i]=='}' && first !=-1{
-				return i
+			switch name.T.Key().Kind() {
+			case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64,
+				reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+				dd,err := strconv.Atoi(key)  // 转化为int
+				if err != nil {
+					fmt.Println(dd)
+					return len(str)
+				}
+				name.V.SetMapIndex(reflect.ValueOf(dd),subv)
+			case reflect.String:
+				name.V.SetMapIndex(reflect.ValueOf(key),subv)
 			}
+
+			end = -1
+			first = -1
+		}else if str[i]=='}' && first !=-1{
+			end = i
+			value := str[first+1:end]
+			var subv reflect.Value
+			switch name.T.Elem().Kind(){
+			case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64,
+				reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+				dd,err := strconv.Atoi(value)  // 转化为int
+				if err != nil {
+					fmt.Println(dd)
+					return len(str)
+				}
+				subv = reflect.ValueOf(dd)
+			case reflect.String:
+				subv = reflect.ValueOf(value[1:len(value)-1])
+			}
+
+			switch name.T.Key().Kind() {
+			case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64,
+				reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+					dd,err := strconv.Atoi(key)  // 转化为int
+				if err != nil {
+					return len(str)
+				}
+				name.V.SetMapIndex(reflect.ValueOf(dd),subv)
+			case reflect.String:
+				name.V.SetMapIndex(reflect.ValueOf(key),subv)
+			}
+			end = -1
+			first = -1
+			return i
 		}
-		return i
+	}
+	return i
 }
 
 // 解析bool
