@@ -318,7 +318,8 @@ func(name *Name) enter(str string)  {
 }
 
 // 这是切片
-func(name *Name) unSlice(str string)  {
+func(name *Name) unSlice(str string)  int {
+
 	 if name.V.IsNil(){
 	 	newv:=reflect.MakeSlice(name.T,name.V.Len(), len(str))
 	 	reflect.Copy(newv,name.V)
@@ -328,65 +329,69 @@ func(name *Name) unSlice(str string)  {
 	 reg := regexp.MustCompile("\\[([\\s\\S]+)\\]")
 	 if reg.MatchString(str){
 	 	ssr:=reg.FindStringSubmatch(str)
+
 	 	s := strings.Split(ssr[1],",")
-	 	fmt.Println(s)
+
 		switch name.T.Elem().Kind(){
 		case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 			flag = 1
 		case reflect.String:
 			flag = 2
-		default:
-			return
+		case reflect.Map:
+			for i,k := range s{
+				name.addlen(i)
+				mapElem := reflect.New(name.T.Elem())
+				name1:=Name{
+					V: mapElem.Elem(),
+					T: name.T.Elem(),
+				}
+				name1.unMap(k)
+				name.V.Index(i).Set(name1.V)
+			}
+			return len(str)
 		}
 	 	if flag == 1{
 	 		for i,k := range s{
-				if i >= name.V.Cap(){
-					newcap := name.V.Cap()+name.V.Cap()/2
-					if newcap < 4{
-						newcap = 4
-					}
-					newv := reflect.MakeSlice(name.V.Type(),name.V.Len(),newcap)
-					reflect.Copy(newv,name.V)
-					name.V.Set(newv)
-				}
-				if i >= name.V.Len(){
-					name.V.SetLen(i+1)
-				}
+	 			name.addlen(i)
 	 			a,err := strconv.Atoi(k)
 				if err != nil {
-					return
+					return len(str)
 				}
 	 			name.V.Index(i).Set(reflect.ValueOf(a))
 			}
 		}else if flag == 2{
 			for i,k := range s{
-				if i >= name.V.Cap(){
-					newcap := name.V.Cap()+name.V.Cap()/2
-					if newcap < 4{
-						newcap = 4
-					}
-					newv := reflect.MakeSlice(name.V.Type(),name.V.Len(),newcap)
-					reflect.Copy(newv,name.V)
-					name.V.Set(newv)
-				}
-				if i >= name.V.Len(){
-					name.V.SetLen(i+1)
-				}
+				name.addlen(i)
 				reg1 := regexp.MustCompile("\"[\\s\\S]+\"")
 				if reg1.MatchString(k) {
 					name.V.Index(i).Set(reflect.ValueOf(k[1 : len(k)-1]))
 				}
 			}
 		}else {
-			return
+			return len(str)
 		}
 	 }
+	 return len(str)
+}
+func(name *Name) addlen(i int){
+	if i >= name.V.Cap(){
+		newcap := name.V.Cap()+name.V.Cap()/2
+		if newcap < 4{
+			newcap = 4
+		}
+		newv := reflect.MakeSlice(name.V.Type(),name.V.Len(),newcap)
+		reflect.Copy(newv,name.V)
+		name.V.Set(newv)
+	}
+	if i >= name.V.Len(){
+		name.V.SetLen(i+1)
+	}
 }
 
-
 //写好了
-func(name *Name) unArray(str string)  {
+func(name *Name) unArray(str string)  int{
+
 	name.V.Set(reflect.Zero(name.T))
 	reg := regexp.MustCompile("\\[([\\s\\S]+)\\]")
 	if reg.MatchString(str){
@@ -394,7 +399,7 @@ func(name *Name) unArray(str string)  {
 		s := strings.Split(ssr[1],",")
 		for i,k := range s{
 			if i > name.V.Len(){
-				return
+				return len(str)
 			}else {
 				d := name.V.Index(i).Kind()
 				switch d {
@@ -402,7 +407,7 @@ func(name *Name) unArray(str string)  {
 					reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 					a,err := strconv.Atoi(k)
 					if err != nil {
-						return
+						return len(str)
 					}
 					name.V.Index(i).Set(reflect.ValueOf(a))
 				case reflect.String:
@@ -411,19 +416,22 @@ func(name *Name) unArray(str string)  {
 						name.V.Index(i).Set(reflect.ValueOf(k[1 : len(k)-1]))
 					}
 				default:
-					return
+					return len(str)
 				}
 			}
 		}
 	}
+	return len(str)
 }
 
-// 问题大得很
+// 暂时好像可以了
 func(name *Name) unMap(str string)  int{
-	name.V.Set(reflect.Zero(name.T))
+
 	if !name.V.CanSet(){
 		return len(str)
 	}
+
+	name.V.Set(reflect.Zero(name.T))
 	if name.V.IsNil(){
 		mapElem:=reflect.MakeMap(name.T)
 		name.V.Set(mapElem)
@@ -568,8 +576,8 @@ func(name *Name) unString(str string)  {
 	}
 	name.V.SetString(str)
 }
-// 来来来面向对象 编程  把这个传入的 interface 变为对象 然后 解析 这个对象 给这个对象 赋值 赋值 然后 因为是指针 就可以改变了 嘻嘻嘻
-// 写垃圾了 不能复用
+var mmm = 0
+// 大概是搞定了
 func(name *Name) unmarshal(str string)  int{
 	defer func() {
 		if r:=recover();r!=nil{
@@ -591,18 +599,52 @@ func(name *Name) unmarshal(str string)  int{
 				b := str[begin+1 : end]
 				key = b
 
-				switch name.V.FieldByName(key).Kind() {
-				case reflect.Struct:
+				k:=name.V.FieldByName(key)
 
+				switch k.Kind() {
+				case reflect.Struct:
 					name1 := &Name{
 						V: name.V.FieldByName(key),
+						T:  k.Type(),
+					}
+					s := str[i+2:]
+					n:=strings.Index(s,"},")
+					if n == -1{
+						n = strings.LastIndex(s,"}")
+					}
+					i += name1.unmarshal(s[:n+1]) + 2
+					// 根据 之前 经验创建一个slice 然后 在赋值回来 因为是指针 完美吗？？
+				case reflect.Slice:
+
+					name1:=&Name{
+						V: name.V.FieldByName(key),
+						T: k.Type(),
+					}
+					s := str[i+2:]
+					n:=strings.Index(s,"]")
+
+					i += name1.unSlice(s[:n+1]) + 2
+
+				case reflect.Array:
+					name1:=&Name{
+						V: name.V.FieldByName(key),
+						T: k.Type(),
+					}
+					s := str[i+2:]
+					n:=strings.Index(s,"]")
+
+					i += name1.unArray(s[:n+1]) + 2
+
+				case reflect.Map:
+					name1:=&Name{
+						V: name.V.FieldByName(key),
+						T: k.Type(),
 					}
 
-					i += name1.unmarshal(str[i+2:]) + 1
+					s := str[i+2:]
+					n:=strings.Index(s,"}")
 
-				case reflect.Slice:
-				case reflect.Array:
-				case reflect.Map:
+					i += name1.unMap(s[:n+1]) + 2
 				default:
 				}
 				begin = -1
@@ -646,7 +688,6 @@ func(name *Name) decide() {
 	}
 }
 
-
 func(name *Name)  getElem(){
 	name.T = name.T.Elem()
 	name.V = name.V.Elem()
@@ -660,7 +701,6 @@ func(name *Name) set(s string,v string) (str string){
 		}
 	}()
 
-	fmt.Println(s,":",v)
 	c := name.V.FieldByName(s)
 	switch c.Kind() {
 	case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64:

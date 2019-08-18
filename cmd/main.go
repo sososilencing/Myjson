@@ -2,22 +2,37 @@ package main
 
 import (
 	"Myjson/method"
-	_"encoding/json"
+	"Myjson/model"
 	"fmt"
+	"time"
+	"unsafe"
 )
 
 func main() {
-	a := make(map[string]string)
-	a["dsa"]="adsmfa"
-	a["dsas"]="msankfdn"
-	a["cmnak"]="amskfbn"
-	fmt.Println(a)
-	v:=method.Marshel(a)
-	fmt.Println(string(v))
-	var k map[string]string
+	t1 := time.Now()
+	student:=&model.Student{
+		StuCode: 231,
+		Si: model.Card{
+			Number: "123",
+			Name:   "2134",
+			X: struct{ Ma string }{Ma: "213"},
+		},
+		D:       [3]string{"13", "qad"},
+		StuName: "sajf",
+	}
+	//t := make([]*model.Student,4)
+	//t[0]=student
+	fmt.Println(student)
+	a:= method.Marshel(student)
+	fmt.Println(quickbytetostring(a))
+	var test model.Student
+	method.Unmarshal(quickbytetostring(a),&test)
+	//json.Unmarshal(a,&test)
+	fmt.Println(test)
 
-	method.Unmarshal(string(v),&k)
-	//json.Unmarshal()
-	fmt.Println(k)
+	fmt.Println(time.Now().Nanosecond()-t1.Nanosecond())
+}
 
+func quickbytetostring(b[] byte)  string{
+	return *(*string)(unsafe.Pointer(&b))
 }

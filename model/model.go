@@ -2,14 +2,15 @@ package model
 
 type Student struct {
 	StuCode  int
+	Si  Card
+	D   [3]string
 	StuName  string
-	CardName Card
 }
 
 type Card struct {
 	Number string
 	Name   string
-	Man Peo
+	X Peo
 }
 type peoplee struct {
 	White string
