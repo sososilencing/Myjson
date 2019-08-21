@@ -3,14 +3,13 @@ package model
 type Student struct {
 	StuCode  int
 	Si  Card
-	D   [3]string
+	D   []string
 	StuName  string
 }
 
 type Card struct {
 	Number string
-	Name   string
-	X Peo
+	Name   map[string]int
 }
 type peoplee struct {
 	White string

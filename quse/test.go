@@ -1,4 +1,8 @@
-package method
+/**
+*@function 已知的string,int,struct,map,array,slice,flaot 的各种搭配序列化 都可以做到,保持为 正常的json格式  一个key
+反序列化:普通的array ,slice(没有声明创建也可以反序列化),map同理,各种搭配暂且不可以. 可以搭配多重struct 或者map ,map 里面包含其他类型
+ */
+package quse
 
 import (
 	"bytes"
@@ -317,7 +321,7 @@ func(name *Name) enter(str string)  {
 	}
 }
 
-// 这是切片
+// 这是切片  有问题 好像是因为 emmm 正则 还是有问题的?? 怎么办
 func(name *Name) unSlice(str string)  int {
 
 	 if name.V.IsNil(){
@@ -331,7 +335,7 @@ func(name *Name) unSlice(str string)  int {
 	 	ssr:=reg.FindStringSubmatch(str)
 
 	 	s := strings.Split(ssr[1],",")
-
+	 	//fmt.Println(s)
 		switch name.T.Elem().Kind(){
 		case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
@@ -350,6 +354,8 @@ func(name *Name) unSlice(str string)  int {
 				name.V.Index(i).Set(name1.V)
 			}
 			return len(str)
+		case reflect.Struct:
+
 		}
 	 	if flag == 1{
 	 		for i,k := range s{
@@ -391,14 +397,13 @@ func(name *Name) addlen(i int){
 
 //写好了
 func(name *Name) unArray(str string)  int{
-
 	name.V.Set(reflect.Zero(name.T))
 	reg := regexp.MustCompile("\\[([\\s\\S]+)\\]")
 	if reg.MatchString(str){
 		ssr := reg.FindStringSubmatch(str)
 		s := strings.Split(ssr[1],",")
 		for i,k := range s{
-			if i > name.V.Len(){
+			if i >= name.V.Len(){
 				return len(str)
 			}else {
 				d := name.V.Index(i).Kind()
@@ -576,7 +581,7 @@ func(name *Name) unString(str string)  {
 	}
 	name.V.SetString(str)
 }
-var mmm = 0
+
 // 大概是搞定了
 func(name *Name) unmarshal(str string)  int{
 	defer func() {
